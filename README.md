@@ -12,6 +12,12 @@ Explore NASA's [Astronomy Picture of the Day (APOD)](https://apod.nasa.gov/apod/
 
 Select a preset or enter a custom date range, then select **Explore**. The archive begins June 16, 1995. Ranges are limited by this app to 90 days and requested in chunks of up to 30 days to keep responses manageable. NASA may omit unavailable dates. Favorites are stored locally in the current browser and are not synced across devices.
 
+## Install and offline use
+
+Production builds can be installed from the in-app install prompt on supported browsers. Installability, service workers, and notification permission require HTTPS or localhost. Run `npm run build` followed by `npm run preview` to test these features locally; the Vite development server does not register the service worker. Notification permission is optional and does not schedule notifications by itself.
+
+After the app has been opened online, its shell is available offline. Previously requested APOD ranges are cached by their exact request, including requests through the configured proxy. A new range that has not been cached still requires a connection. Remote images, videos, and fonts are not cached and may be unavailable offline. The offline indicator reflects the browser's connection status; a network can be connected even when NASA is unreachable.
+
 If APOD is unavailable or returns placeholder logos, the gallery displays clearly labeled NASA Image Library highlights instead. These highlights are not filtered by the selected dates. Gallery results are shown nine per page.
 
 ## API keys and optional proxy

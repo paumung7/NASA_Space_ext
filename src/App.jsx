@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowDownUp, ArrowRight, ArrowUpRight, CalendarDays, ChevronDown, Compass, Heart, ImageOff, Play, Search, Shuffle, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { ArrowDown, ArrowDownUp, ArrowRight, ArrowUpRight, Bell, CalendarDays, ChevronDown, Compass, Download, Heart, ImageOff, Play, Search, Shuffle, SlidersHorizontal, Sparkles, WifiOff, X } from 'lucide-react';
 import { FIRST_APOD_DATE, fetchApodRange, shiftDate, todayString, validateRange } from './lib/apod';
 import { featuredImages, libraryHighlights } from './lib/nasa-images';
 
@@ -7,6 +7,70 @@ const formatDate = (date) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 
 const entryKey = (entry) => entry.source ? `${entry.source}:${entry.url}` : `APOD:${entry.date}`;
+
+let pendingInstall = null;
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  pendingInstall = event;
+  window.dispatchEvent(new Event('installpromptchange'));
+});
+window.addEventListener('appinstalled', () => {
+  pendingInstall = null;
+  window.dispatchEvent(new Event('installpromptchange'));
+});
+
+function AppControls() {
+  const [online, setOnline] = useState(navigator.onLine);
+  const [installPrompt, setInstallPrompt] = useState(pendingInstall);
+  const [installDismissed, setInstallDismissed] = useState(false);
+  const [permission, setPermission] = useState(() => 'Notification' in window ? Notification.permission : 'unsupported');
+  const [permissionMessage, setPermissionMessage] = useState('');
+
+  useEffect(() => {
+    const updateConnection = () => setOnline(navigator.onLine);
+    const updateInstall = () => setInstallPrompt(pendingInstall);
+    window.addEventListener('online', updateConnection);
+    window.addEventListener('offline', updateConnection);
+    window.addEventListener('installpromptchange', updateInstall);
+    updateInstall();
+    return () => {
+      window.removeEventListener('online', updateConnection);
+      window.removeEventListener('offline', updateConnection);
+      window.removeEventListener('installpromptchange', updateInstall);
+    };
+  }, []);
+
+  async function installApp() {
+    if (!installPrompt) return;
+    pendingInstall = null;
+    setInstallPrompt(null);
+    try { await installPrompt.prompt(); } catch { setInstallDismissed(false); }
+  }
+
+  async function requestNotifications() {
+    try {
+      const result = await Notification.requestPermission();
+      setPermission(result);
+      setPermissionMessage(result === 'granted' ? 'Notification permission granted.' : result === 'denied' ? 'Notifications are blocked in browser settings.' : 'Notification permission was not granted.');
+    } catch {
+      setPermissionMessage('Could not request notification permission.');
+    }
+  }
+
+  return <div className="app-controls">
+    <div className="content-wrap app-controls-inner">
+      {!online && <div className="offline-indicator" role="status"><WifiOff size={16} /> Offline <span>Previously viewed APOD data may be available.</span></div>}
+      {installPrompt && !installDismissed && <div className="install-prompt"><span>Install Space Explorer</span><button className="app-control-button" onClick={installApp}><Download size={15} /> Install</button><button className="app-control-icon" onClick={() => setInstallDismissed(true)} aria-label="Dismiss install prompt" title="Dismiss install prompt"><X size={15} /></button></div>}
+      {installPrompt && installDismissed && <button className="app-control-button" onClick={installApp}><Download size={15} /> Install app</button>}
+      <div className="notification-control">
+        {permission === 'default' && <button className="app-control-button" onClick={requestNotifications}><Bell size={15} /> Enable notifications</button>}
+        {permission === 'granted' && !permissionMessage && <span><Bell size={15} /> Notifications allowed</span>}
+        {permission === 'denied' && !permissionMessage && <span><Bell size={15} /> Notifications blocked in browser settings</span>}
+        {permissionMessage && <span role="status">{permissionMessage}</span>}
+      </div>
+    </div>
+  </div>;
+}
 
 function readFavorites() {
   try {
@@ -143,6 +207,7 @@ function App() {
 
   return <div id="top" className="app-shell">
     <header className="site-header"><div className="header-inner"><Brand /><nav aria-label="Main navigation"><a className="nav-link active" href="#gallery">Explore</a><button className="nav-link" onClick={() => { setView('favorites'); document.getElementById('gallery')?.scrollIntoView({ behavior: 'smooth' }); }}>Favorites <span className="nav-count">{favorites.length}</span></button><a className="nav-link nav-about" href="https://apod.nasa.gov/apod/astropix.html" target="_blank" rel="noreferrer">About APOD <ArrowUpRight size={13} /></a></nav><a className="header-nasa" href="https://www.nasa.gov/" target="_blank" rel="noreferrer">NASA.GOV <ArrowUpRight size={14} /></a></div></header>
+    <AppControls />
 
     <main>
       <section className="hero" aria-labelledby="hero-title"><div className="hero-image" /><div className="hero-overlay" /><div className="hero-inner"><div className="hero-copy"><div className="eyebrow hero-eyebrow"><span className="red-dot" /> YOUR WINDOW TO THE COSMOS <span className="eyebrow-line" /> EST. 1995</div><h1 id="hero-title">Explore the Universe,<br /><em>One Day at a Time.</em></h1><p>Somewhere, something incredible is waiting to be discovered. Explore the cosmos through NASA's Astronomy Picture of the Day.</p><div className="hero-actions"><a className="primary-button" href="#explore">Start exploring <ArrowRight size={17} /></a><button className="hero-random" onClick={discoverRandom}><Shuffle size={16} /> Surprise me</button></div></div><div className="hero-bottom"><span><span className="red-dot" /> A NEW PERSPECTIVE, EVERY DAY</span><a href="#explore">SCROLL TO EXPLORE <ArrowDown size={14} /></a></div></div><div className="hero-side-label">THE UNIVERSE IS YOURS TO DISCOVER <span>01 / 01</span></div></section>
