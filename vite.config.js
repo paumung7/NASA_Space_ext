@@ -7,6 +7,11 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
   base: './',
+  server: {
+    host: true,
+    // Allow access through the Codespaces forwarded domain
+    allowedHosts: ['.app.github.dev'],
+  },
   build: {
     rollupOptions: {
       plugins: [{
